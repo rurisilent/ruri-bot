@@ -9,8 +9,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Reference Include="CqHttpSharp">
-      <HintPath>..\..\CqHttpSharp\CqHttpSharp\bin\Debug\netstandard2.0\CqHttpSharp.dll</HintPath>
+    <Reference Include="NapCatSharpLib">
+      <HintPath>..\..\NapCatSharpLib\NapCatSharpLib\bin\Release\netstandard2.0\NapCatSharpLib.dll</HintPath>
     </Reference>
   </ItemGroup>
 

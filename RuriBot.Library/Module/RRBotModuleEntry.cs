@@ -1,7 +1,4 @@
-﻿using CqHttpSharp.API;
-using CqHttpSharp.Data;
-using CqHttpSharp.Event.Manager;
-using RuriBot.Library.Data;
+﻿using RuriBot.Library.Data;
 using RuriBot.Library.Event;
 using RuriBot.Library.IO;
 using RuriBot.Library.Log;
@@ -9,15 +6,17 @@ using System;
 using System.IO;
 using System.Collections.Generic;
 using System.Text;
+using NapCatSharpLib.API;
+using NapCatSharpLib.Event.Manager;
 
 namespace RuriBot.Library.Module
 {
     public abstract class RRBotModuleEntry
     {
         //模块操作
-        protected RRBotCommandReceiver commandReceiver;
-        protected CqHttpEventManager eventManager;
-        protected CqHttpAPI api;
+        protected IRRBotCommandRegistry cmdRegister;
+        protected NapCatEventManager evtManager;
+        protected NapCatAPI api;
 
         //文件操作
         protected IRRBotModuleIO fileIO;
@@ -60,17 +59,15 @@ namespace RuriBot.Library.Module
 
         ~RRBotModuleEntry()
         {
-            if (commandReceiver != null)
-            {
-                commandReceiver.OnReceivePrivateBotCommand -= PrivateCommandProcess;
-                commandReceiver.OnReceiveGroupBotCommand -= GroupCommandProcess;
-            }
+            UnregisterPrivateCommands();
+            UnregisterGroupCommands();
+            UnregisterNapCatEvents();
         }
 
-        public void ModuleEntryInit(RRBotCommandReceiver _cmdRecv, CqHttpEventManager _evtMgr, CqHttpAPI _api, IRRBotModuleIO _io, IRRBotLogger _logger, string _moduleDataPath)
+        public void ModuleEntryInit(IRRBotCommandRegistry _cmdReg, NapCatEventManager _evtMgr, NapCatAPI _api, IRRBotModuleIO _io, IRRBotLogger _logger, string _moduleDataPath)
         {
-            commandReceiver = _cmdRecv;
-            eventManager = _evtMgr;
+            cmdRegister = _cmdReg;
+            evtManager = _evtMgr;
             api = _api;
             fileIO = _io;
 
@@ -83,9 +80,9 @@ namespace RuriBot.Library.Module
             moduleDataPath = Path.Combine(moduleDataPath, ModuleFullID);
 
             ExtendedInit();
-
-            commandReceiver.OnReceivePrivateBotCommand += PrivateCommandProcess;
-            commandReceiver.OnReceiveGroupBotCommand += GroupCommandProcess;
+            RegisterPrivateCommands();
+            RegisterGroupCommands();
+            RegisterNapCatEvents();
         }
 
         protected void Log(string content)
@@ -96,7 +93,11 @@ namespace RuriBot.Library.Module
         protected abstract void SetModuleInfo();
         protected abstract void ConfigurationInit();
         protected virtual void ExtendedInit() { }
-        protected abstract void PrivateCommandProcess(RRBotDataCommand command, CqHttpMessagePrivate source);
-        protected abstract void GroupCommandProcess(RRBotDataCommand command, CqHttpMessageGroup source);
+        protected abstract void RegisterPrivateCommands();
+        protected abstract void UnregisterPrivateCommands();
+        protected abstract void RegisterGroupCommands();
+        protected abstract void UnregisterGroupCommands();
+        protected abstract void RegisterNapCatEvents();
+        protected abstract void UnregisterNapCatEvents();
     }
 }

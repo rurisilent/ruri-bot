@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text;
-using CqHttpSharp.Message;
+using NapCatSharpLib.Message;
 using RuriBot.Library.Data;
 using RuriBot.Library.Event;
 
@@ -9,14 +9,14 @@ namespace RuriBot.Core.Lexer
 {
     public class CommandLexer
     {
-        public RRBotDataCommand MessageLexer(string message)
+        public RRBotCommand MessageLexer(string message)
         {
             return MessageLexer(new CqMessageChain(message));
         }
 
-        public RRBotDataCommand MessageLexer(CqMessageChain messageChain)
+        public RRBotCommand MessageLexer(CqMessageChain messageChain)
         {
-            RRBotDataCommand ret = new RRBotDataCommand();
+            RRBotCommand ret = new RRBotCommand();
 
             if (messageChain.Count <= 0) return null;
             else

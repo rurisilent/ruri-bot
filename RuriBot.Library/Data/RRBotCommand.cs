@@ -4,14 +4,14 @@ using System.Text;
 
 namespace RuriBot.Library.Data
 {
-    public class RRBotDataCommand
+    public class RRBotCommand
     {
         public string CommandType { get; private set; }
         public string CommandSubType { get; private set; }
         public ushort CommandArgsCount { get; private set; }
         public List<string> CommandArgs { get; private set; }
 
-        public RRBotDataCommand()
+        public RRBotCommand()
         {
             CommandType = "";
             CommandSubType = "";
