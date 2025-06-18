@@ -122,6 +122,29 @@ namespace RuriBot.Library.Event
                         return false;
                     }
                 }
+                else if (subReg.TryGetValue("", out var mainCbCollection))
+                {
+                    try
+                    {
+                        var newCmd = new RRBotCommand();
+                        newCmd.SetType(cmd.CommandType);
+                        newCmd.SetSubType("");
+                        newCmd.AddArgument(cmd.CommandSubType);
+                        foreach (var arg in cmd.CommandArgs)
+                        {
+                            newCmd.AddArgument(arg);
+                        }
+                        foreach (var cb in mainCbCollection)
+                        {
+                            if (cb.Item1.IsGroupPermission(msg.group_id)) cb.Item2?.Invoke(newCmd, msg);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        ret = $"{ex.Message}\n\n{ex.StackTrace}";
+                        return false;
+                    }
+                }
             }
             ret = "success";
             return true;

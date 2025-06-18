@@ -168,7 +168,7 @@ namespace RuriBot.Core
 
         private void InitData()
         {
-            permissionManager = new PermissionManager(coreIO);
+            permissionManager = new PermissionManager(coreIO, commandManager);
 
             OutputBotLog("Ruri-Bot", "数据初始化完成");
         }
@@ -178,7 +178,7 @@ namespace RuriBot.Core
             modulePath = Path.Combine(assemblyExecutePath, BotCoreConst.ModulePath);
             moduleDataPath = Path.Combine(assemblyExecutePath, BotCoreConst.ModuleDataPath);
 
-            moduleManager = new ModuleManager(commandManager, webSocket.EventManager, api, moduleIO, modulePath, moduleDataPath, permissionManager, coreLogger);
+            moduleManager = new ModuleManager(commandManager, eventManager, api, moduleIO, modulePath, moduleDataPath, permissionManager, coreLogger);
             moduleManager.LoadModules();
 
             OutputBotLog("Ruri-Bot", "模块初始化完成");

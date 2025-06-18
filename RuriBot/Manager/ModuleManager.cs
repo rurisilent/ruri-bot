@@ -92,7 +92,7 @@ namespace RuriBot.Core.Manager
 
         //模块操作
         protected IRRBotCommandRegistry commandRegister;
-        protected NapCatEventManager eventManager;
+        protected IRRBotEventRegistry eventRegister;
         protected NapCatAPI api;
         protected ModulePermissionDummy permissionDummy;
 
@@ -115,10 +115,10 @@ namespace RuriBot.Core.Manager
             }
         }
 
-        public ModuleManager(IRRBotCommandRegistry _cmdRegister, NapCatEventManager _evtMgr, NapCatAPI _api, IRRBotModuleIO _moduleIO, string _modulePath, string _moduleDataPath, IRRBotPermission _permission, IRRBotLogger _logger = null)
+        public ModuleManager(IRRBotCommandRegistry _cmdRegister, IRRBotEventRegistry _evtRegister, NapCatAPI _api, IRRBotModuleIO _moduleIO, string _modulePath, string _moduleDataPath, IRRBotPermission _permission, IRRBotLogger _logger = null)
         {
             commandRegister = _cmdRegister;
-            eventManager = _evtMgr;
+            eventRegister = _evtRegister;
             api = _api;
             moduleIO = _moduleIO;
             modulePath = _modulePath;
@@ -132,11 +132,15 @@ namespace RuriBot.Core.Manager
 
             // Register
             _cmdRegister.RegisterGroup("rrbot", "modules", permissionDummy, GetModules);
+            _cmdRegister.RegisterGroup("rrbot", "enable", permissionDummy, SetModuleGroupEnable);
+            _cmdRegister.RegisterGroup("rrbot", "disable", permissionDummy, SetModuleGroupDisable);
         }
 
         ~ModuleManager()
         {
             commandRegister.UnregisterGroup("rrbot", "modules", permissionDummy, GetModules);
+            commandRegister.UnregisterGroup("rrbot", "enable", permissionDummy, SetModuleGroupEnable);
+            commandRegister.UnregisterGroup("rrbot", "disable", permissionDummy, SetModuleGroupDisable);
         }
 
         public void LoadModules()
@@ -161,7 +165,7 @@ namespace RuriBot.Core.Manager
                         {
                             object o = Activator.CreateInstance(t);
                             RRBotModuleEntry module = (RRBotModuleEntry)o;
-                            module.ModuleEntryInit(commandRegister, eventManager, api, moduleIO, coreLogger, moduleDataPath);
+                            module.ModuleEntryInit(commandRegister, eventRegister, api, moduleIO, permission, coreLogger, moduleDataPath);
                             if (module.ModuleFullID == "" || modules.ContainsKey(module.ModuleFullID))
                                 continue; //log something when conflict
                             else
@@ -206,118 +210,124 @@ namespace RuriBot.Core.Manager
             }
         }
 
-        //protected async void GroupCommandProcess(RRBotCommand command, CqHttpMessageGroup source)
-        //{
-        //    if (!permission.IsSuperUser(source.sender.user_id)) return;
+        protected async void SetModuleGroupEnable(RRBotCommand command, NapCatMessageGroup source)
+        {
+            if (!permission.IsDeveloper(source.sender.user_id)) return;
 
-        //    if (command.CommandType == "rrbot")
-        //    {
-        //        if (command.CommandSubType == "modules")
-        //        {
-        //            if (command.CommandArgsCount == 0)
-        //            {
-        //                CqMessageChain ret = new CqMessageChain();
-        //                ret.Builder.AddText("[Ruri-Bot]\n");
-        //                ret.Builder.AddText($"已加载模块个数：{ModuleCount}\n");
-        //                ret.Builder.AddText("-------\n");
-        //                int index = 0;
-        //                foreach (var mod in modules)
-        //                {
-        //                    ret.Builder.AddText(mod.Key);
-        //                    if (index < ModuleCount - 1) ret.Builder.AddText("\n");
-        //                    index++;
-        //                }
+            if (command.CommandArgsCount > 0)
+            {
+                if (command.CommandArgsCount == 1)
+                {
+                    var moduleId = command.CommandArgs[0];
+                    /*if (long.TryParse(command.CommandArgs[3]))*/
+                    if (modules.ContainsKey(moduleId))
+                    {
+                        if (!modules[moduleId].Permission.IsGroupPermission(source.group_id))
+                            modules[moduleId].Permission.SetGroupPermission(modules[moduleId].Permission.GetGroupType() == RRBotModulePermissionType.blacklist ? RRBotModulePermissionOperationType.remove : RRBotModulePermissionOperationType.add, source.group_id);
+                        CqMessageChain ret = new CqMessageChain();
+                        ret.Builder.AddText("[Ruri-Bot]\n");
+                        ret.Builder.AddText($"已在本群启用模块 {modules[moduleId].ModuleName} ({modules[moduleId].ModuleFullID})");
+                        await api.SendGroupMessage(source.group_id, ret);
+                    }
+                    else
+                    {
+                        CqMessageChain ret = new CqMessageChain();
+                        ret.Builder.AddText("[Ruri-Bot]\n");
+                        ret.Builder.AddText($"模块 ID 无效，可能是未加载或输入错误");
+                        await api.SendGroupMessage(source.group_id, ret);
+                    }
+                }
+                else if (command.CommandArgsCount == 2)
+                {
+                    var moduleId = command.CommandArgs[0];
+                    if (long.TryParse(command.CommandArgs[1], out var targetGroupId))
+                    {
+                        if (modules.ContainsKey(moduleId))
+                        {
+                            if (!modules[moduleId].Permission.IsGroupPermission(targetGroupId))
+                                modules[moduleId].Permission.SetGroupPermission(modules[moduleId].Permission.GetGroupType() == RRBotModulePermissionType.blacklist ? RRBotModulePermissionOperationType.remove : RRBotModulePermissionOperationType.add, targetGroupId);
+                            CqMessageChain ret = new CqMessageChain();
+                            ret.Builder.AddText("[Ruri-Bot]\n");
+                            ret.Builder.AddText($"已在群 {targetGroupId} 启用模块 {modules[moduleId].ModuleName} ({modules[moduleId].ModuleFullID})");
+                            await api.SendGroupMessage(source.group_id, ret);
+                        }
+                        else
+                        {
+                            CqMessageChain ret = new CqMessageChain();
+                            ret.Builder.AddText("[Ruri-Bot]\n");
+                            ret.Builder.AddText($"模块 ID 无效，可能是未加载或输入错误");
+                            await api.SendGroupMessage(source.group_id, ret);
+                        }
+                    }
+                    else
+                    {
+                        CqMessageChain ret = new CqMessageChain();
+                        ret.Builder.AddText("[Ruri-Bot]\n");
+                        ret.Builder.AddText($"群号无效");
+                        await api.SendGroupMessage(source.group_id, ret);
+                    }
+                }
+            }
+        }
 
-        //                await api.SendGroupMessage(source.group_id, ret);
-        //            }
-        //        }
-        //        else if (command.CommandSubType == "set")
-        //        {
-        //            if (command.CommandArgsCount > 0)
-        //            {
-        //                if (command.CommandArgs[0] == "group" && command.CommandArgsCount >= 2)
-        //                {
-        //                    if (command.CommandArgs[1] == "enable" && command.CommandArgsCount == 3)
-        //                    {
-        //                        var moduleId = command.CommandArgs[2];
-        //                        /*if (long.TryParse(command.CommandArgs[3]))*/
-        //                        if (modules.ContainsKey(moduleId))
-        //                        {
-        //                            if (!modules[moduleId].Permission.IsGroupPermission(source.group_id))
-        //                                modules[moduleId].Permission.SetGroupPermission(modules[moduleId].Permission.GetGroupType() == RRBotModulePermissionType.blacklist ? RRBotModulePermissionOperationType.remove : RRBotModulePermissionOperationType.add, source.group_id);
-        //                            await api.SendGroupMessage(source.group_id, new CqMessageChain($"已在本群启用模块 {modules[moduleId].ModuleName} ({modules[moduleId].ModuleFullID})"));
-        //                        }
-        //                        else
-        //                        {
-        //                            await api.SendGroupMessage(source.group_id, new CqMessageChain("模块 ID 无效，可能是未加载或输入错误"));
-        //                        }
-        //                    }
-        //                    else if (command.CommandArgs[1] == "enable" && command.CommandArgsCount == 4)
-        //                    {
-        //                        var moduleId = command.CommandArgs[2];
-        //                        if (long.TryParse(command.CommandArgs[3], out var targetGroupId))
-        //                        {
-        //                            if (modules.ContainsKey(moduleId))
-        //                            {
-        //                                if (!modules[moduleId].Permission.IsGroupPermission(targetGroupId))
-        //                                    modules[moduleId].Permission.SetGroupPermission(modules[moduleId].Permission.GetGroupType() == RRBotModulePermissionType.blacklist ? RRBotModulePermissionOperationType.remove : RRBotModulePermissionOperationType.add, targetGroupId);
-        //                            await api.SendGroupMessage(source.group_id, new CqMessageChain($"已在群 {targetGroupId} 启用模块 {modules[moduleId].ModuleName} ({modules[moduleId].ModuleFullID})"));
-        //                            }
-        //                            else
-        //                            {
-        //                                await api.SendGroupMessage(source.group_id, new CqMessageChain("模块 ID 无效，可能是未加载或输入错误"));
-        //                            }
-        //                        }
-        //                        else
-        //                        {
-        //                            await api.SendGroupMessage(source.group_id, new CqMessageChain("群号无效"));
-        //                        }
-        //                    }
-        //                    else if (command.CommandArgs[1] == "disable" && command.CommandArgsCount == 3)
-        //                    {
-        //                        var moduleId = command.CommandArgs[2];
-        //                        /*if (long.TryParse(command.CommandArgs[3]))*/
-        //                        if (modules.ContainsKey(moduleId))
-        //                        {
-        //                            if (modules[moduleId].Permission.IsGroupPermission(source.group_id))
-        //                                modules[moduleId].Permission.SetGroupPermission(modules[moduleId].Permission.GetGroupType() == RRBotModulePermissionType.whitelist ? RRBotModulePermissionOperationType.remove : RRBotModulePermissionOperationType.add, source.group_id);
-        //                            await api.SendGroupMessage(source.group_id, new CqMessageChain($"已在本群禁用模块 {modules[moduleId].ModuleName} ({modules[moduleId].ModuleFullID})"));
-        //                        }
-        //                        else
-        //                        {
-        //                            await api.SendGroupMessage(source.group_id, new CqMessageChain("模块 ID 无效，可能是未加载或输入错误"));
-        //                        }
-        //                    }
-        //                    else if (command.CommandArgs[1] == "disable" && command.CommandArgsCount == 4)
-        //                    {
-        //                        var moduleId = command.CommandArgs[2];
-        //                        if (long.TryParse(command.CommandArgs[3], out var targetGroupId))
-        //                        {
-        //                            if (modules.ContainsKey(moduleId))
-        //                            {
-        //                                if (modules[moduleId].Permission.IsGroupPermission(targetGroupId))
-        //                                    modules[moduleId].Permission.SetGroupPermission(modules[moduleId].Permission.GetGroupType() == RRBotModulePermissionType.whitelist ? RRBotModulePermissionOperationType.remove : RRBotModulePermissionOperationType.add, targetGroupId);
-        //                                await api.SendGroupMessage(source.group_id, new CqMessageChain($"已在群 {targetGroupId} 禁用模块 {modules[moduleId].ModuleName} ({modules[moduleId].ModuleFullID})"));
-        //                            }
-        //                            else
-        //                            {
-        //                                await api.SendGroupMessage(source.group_id, new CqMessageChain("模块 ID 无效，可能是未加载或输入错误"));
-        //                            }
-        //                        }
-        //                        else
-        //                        {
-        //                            await api.SendGroupMessage(source.group_id, new CqMessageChain("群号无效"));
-        //                        }
-        //                    }
-        //                }
-        //                else
-        //                {
+        protected async void SetModuleGroupDisable(RRBotCommand command, NapCatMessageGroup source)
+        {
+            if (!permission.IsDeveloper(source.sender.user_id)) return;
 
-        //                }
-                        
-        //            }
-        //        }
-        //    }
-        //}
+            if (command.CommandArgsCount > 0)
+            {
+                if (command.CommandArgsCount == 1)
+                {
+                    var moduleId = command.CommandArgs[0];
+                    /*if (long.TryParse(command.CommandArgs[3]))*/
+                    if (modules.ContainsKey(moduleId))
+                    {
+                        if (modules[moduleId].Permission.IsGroupPermission(source.group_id))
+                            modules[moduleId].Permission.SetGroupPermission(modules[moduleId].Permission.GetGroupType() == RRBotModulePermissionType.whitelist ? RRBotModulePermissionOperationType.remove : RRBotModulePermissionOperationType.add, source.group_id);
+                        CqMessageChain ret = new CqMessageChain();
+                        ret.Builder.AddText("[Ruri-Bot]\n");
+                        ret.Builder.AddText($"已在本群禁用模块 {modules[moduleId].ModuleName} ({modules[moduleId].ModuleFullID})");
+                        await api.SendGroupMessage(source.group_id, ret);
+                    }
+                    else
+                    {
+                        CqMessageChain ret = new CqMessageChain();
+                        ret.Builder.AddText("[Ruri-Bot]\n");
+                        ret.Builder.AddText($"模块 ID 无效，可能是未加载或输入错误");
+                        await api.SendGroupMessage(source.group_id, ret);
+                    }
+                }
+                else if (command.CommandArgsCount == 2)
+                {
+                    var moduleId = command.CommandArgs[0];
+                    if (long.TryParse(command.CommandArgs[1], out var targetGroupId))
+                    {
+                        if (modules.ContainsKey(moduleId))
+                        {
+                            if (modules[moduleId].Permission.IsGroupPermission(targetGroupId))
+                                modules[moduleId].Permission.SetGroupPermission(modules[moduleId].Permission.GetGroupType() == RRBotModulePermissionType.whitelist ? RRBotModulePermissionOperationType.remove : RRBotModulePermissionOperationType.add, targetGroupId);
+                            CqMessageChain ret = new CqMessageChain();
+                            ret.Builder.AddText("[Ruri-Bot]\n");
+                            ret.Builder.AddText($"已在群 {targetGroupId} 禁用模块 {modules[moduleId].ModuleName} ({modules[moduleId].ModuleFullID})");
+                            await api.SendGroupMessage(source.group_id, ret);
+                        }
+                        else
+                        {
+                            CqMessageChain ret = new CqMessageChain();
+                            ret.Builder.AddText("[Ruri-Bot]\n");
+                            ret.Builder.AddText($"模块 ID 无效，可能是未加载或输入错误");
+                            await api.SendGroupMessage(source.group_id, ret);
+                        }
+                    }
+                    else
+                    {
+                        CqMessageChain ret = new CqMessageChain();
+                        ret.Builder.AddText("[Ruri-Bot]\n");
+                        ret.Builder.AddText($"群号无效");
+                        await api.SendGroupMessage(source.group_id, ret);
+                    }
+                }
+            }
+        }
     }
 }

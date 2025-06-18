@@ -8,6 +8,7 @@ using System.Collections.Generic;
 using System.Text;
 using NapCatSharpLib.API;
 using NapCatSharpLib.Event.Manager;
+using RuriBot.Library.Permission;
 
 namespace RuriBot.Library.Module
 {
@@ -15,7 +16,7 @@ namespace RuriBot.Library.Module
     {
         //模块操作
         protected IRRBotCommandRegistry cmdRegister;
-        protected NapCatEventManager evtManager;
+        protected IRRBotEventRegistry evtRegister;
         protected NapCatAPI api;
 
         //文件操作
@@ -27,6 +28,7 @@ namespace RuriBot.Library.Module
 
         //数据
         public RRBotModulePermission Permission { get; protected set; }
+        public IRRBotPermission BotPermission { get; protected set; }
 
         //只读
         protected string module_id = "";
@@ -64,12 +66,13 @@ namespace RuriBot.Library.Module
             UnregisterNapCatEvents();
         }
 
-        public void ModuleEntryInit(IRRBotCommandRegistry _cmdReg, NapCatEventManager _evtMgr, NapCatAPI _api, IRRBotModuleIO _io, IRRBotLogger _logger, string _moduleDataPath)
+        public void ModuleEntryInit(IRRBotCommandRegistry _cmdReg, IRRBotEventRegistry _evtReg, NapCatAPI _api, IRRBotModuleIO _io, IRRBotPermission _botPerm, IRRBotLogger _logger, string _moduleDataPath)
         {
             cmdRegister = _cmdReg;
-            evtManager = _evtMgr;
+            evtRegister = _evtReg;
             api = _api;
             fileIO = _io;
+            BotPermission = _botPerm;
 
             coreLogger = _logger;
 
