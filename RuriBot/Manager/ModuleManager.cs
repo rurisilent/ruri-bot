@@ -147,6 +147,27 @@ namespace RuriBot.Core.Manager
         {
             if (!Directory.Exists(modulePath)) Directory.CreateDirectory(modulePath);
 
+            AppDomain.CurrentDomain.AssemblyResolve += (sender, args) =>
+            {
+                
+                // args.Name 是丢失程序集的名称（例如 "Google.Apis.Core, Version=..."）
+                string assemblyName = new AssemblyName(args.Name).Name + ".dll";
+                coreLogger?.Log("Try loading " + assemblyName);
+
+                // 定义插件可能存放的目录
+                string pluginDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "dependencies");
+
+                // 递归查找该 DLL
+                foreach (var file in Directory.GetFiles(pluginDir, "*.dll", SearchOption.AllDirectories))
+                {
+                    if (Path.GetFileName(file) == assemblyName)
+                    {
+                        return Assembly.LoadFrom(file); // 找到并手动加载
+                    }
+                }
+                return null;
+            };
+
             string[] module_dlls = Directory.GetFiles(modulePath);
             coreLogger?.Log("[Ruri-Bot] 开始加载模块");
             coreLogger?.Log("[Ruri-Bot] ----------");
